@@ -8,6 +8,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -23,4 +25,14 @@ public class RegisterRequestDto {
     private String password;
 
     private Role role;
+
+    @NotBlank(message = "Patient last name is required")
+    private String nom;
+
+    @NotBlank(message = "Patient first name is required")
+    private String prenom;
+
+    private String telephone;
+
+    private LocalDate dateNaissance;
 }

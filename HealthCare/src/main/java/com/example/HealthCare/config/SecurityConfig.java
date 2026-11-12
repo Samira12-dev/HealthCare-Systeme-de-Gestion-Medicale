@@ -18,6 +18,15 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.http.HttpStatus;
+
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
+
+
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -46,17 +55,57 @@ public class SecurityConfig {
     }
 
     @Bean
+    CorsConfigurationSource corsConfigurationSource() {
+
+        CorsConfiguration config = new CorsConfiguration();
+
+
+        config.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*"));
+
+        config.setAllowedMethods(
+                List.of("*")
+        );
+
+        config.setAllowedHeaders(
+                List.of("*")
+        );
+
+        config.setAllowCredentials(true);
+
+
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
+        source.registerCorsConfiguration("/**", config);
+
+        return source;
+    }
+    
+    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
+                .cors(cors -> {})
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+                .exceptionHandling(ex -> ex
+                        // No/invalid/expired token -> 401, not 403
+                        .authenticationEntryPoint((request, response, authException) ->
+                                response.sendError(HttpStatus.UNAUTHORIZED.value(), "Unauthorized: " + authException.getMessage()))
+                        // Authenticated but wrong role -> 403
+                        .accessDeniedHandler((request, response, accessDeniedException) ->
+                                response.sendError(HttpStatus.FORBIDDEN.value(), "Forbidden: " + accessDeniedException.getMessage()))
+                )
                 .authenticationProvider(authenticationProvider())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
+                                .requestMatchers("/error").permitAll()
+                                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                                .requestMatchers("/api/auth/**").permitAll()
 
+// dashboard stats (role aware, any authenticated user)
+                                .requestMatchers(HttpMethod.GET, "/api/dashboard/**").authenticated()
                         // Swagger
                         .requestMatchers(
                                 "/api-docs/**",
@@ -79,21 +128,41 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")
 
                         //medecin & admin
+                        .requestMatchers(HttpMethod.GET, "/api/medecins/me").hasRole("MEDECIN")
                         .requestMatchers(HttpMethod.GET, "/api/medecins/**").hasAnyRole("MEDECIN","ADMIN")
                         .requestMatchers(HttpMethod.POST,"/api/medecins/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT,"/api/medecins/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE,"/api/medecins/**").hasRole("ADMIN")
 
                         //patient
-                        .requestMatchers(HttpMethod.GET,    "/api/patients/me").hasAnyRole("PATIENT", "MEDECIN", "ADMIN")
-                        .requestMatchers(HttpMethod.PUT,    "/api/patients/me").hasRole("PATIENT")
-                        .requestMatchers(HttpMethod.GET,    "/api/patients").hasAnyRole("MEDECIN", "ADMIN")
-                        .requestMatchers(HttpMethod.GET,    "/api/patients/**").hasAnyRole("MEDECIN", "ADMIN")
-                        .requestMatchers(HttpMethod.POST,   "/api/patients/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT,    "/api/patients/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/patients/**").hasRole("ADMIN")
 
-                        //rendez_vous
+// Patient permissions
+
+                                .requestMatchers(HttpMethod.GET, "/api/patients/me")
+                                .hasRole("PATIENT")
+
+                                .requestMatchers(HttpMethod.GET, "/api/patients")
+                                .hasAnyRole("MEDECIN", "ADMIN")
+
+                                .requestMatchers(HttpMethod.GET, "/api/patients/search")
+                                .hasAnyRole("MEDECIN", "ADMIN")
+
+                                .requestMatchers(HttpMethod.GET, "/api/patients/sort")
+                                .hasAnyRole("MEDECIN", "ADMIN")
+
+                                .requestMatchers(HttpMethod.GET, "/api/patients/{id}")
+                                .hasAnyRole("MEDECIN", "ADMIN")
+
+                                .requestMatchers(HttpMethod.POST, "/api/patients")
+                                .hasRole("ADMIN")
+
+                                .requestMatchers(HttpMethod.PUT, "/api/patients/{id}")
+                                .hasRole("ADMIN")
+
+                                .requestMatchers(HttpMethod.DELETE, "/api/patients/{id}")
+                                .hasRole("ADMIN")
+
+                                //rendez_vous
                         .requestMatchers(HttpMethod.GET,    "/api/rendez_vous/me").hasAnyRole("PATIENT", "MEDECIN", "ADMIN")
                         .requestMatchers(HttpMethod.POST,   "/api/rendez_vous/**").hasAnyRole("PATIENT", "MEDECIN", "ADMIN")
                         .requestMatchers(HttpMethod.GET,    "/api/rendez_vous/**").hasAnyRole("MEDECIN", "ADMIN")

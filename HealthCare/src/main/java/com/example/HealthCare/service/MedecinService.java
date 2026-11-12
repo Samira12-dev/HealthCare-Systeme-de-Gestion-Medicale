@@ -2,10 +2,13 @@ package com.example.HealthCare.service;
 
 import com.example.HealthCare.dto.MedecinRequestDTO;
 import com.example.HealthCare.dto.MedecinResponseDTO;
+import com.example.HealthCare.dto.PageResponseDTO;
 import com.example.HealthCare.entity.Medecin;
+import com.example.HealthCare.entity.Role;
 import com.example.HealthCare.mapper.MedecinMapper;
 import com.example.HealthCare.repository.MedecinRepo;
 import jakarta.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
@@ -13,7 +16,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -21,6 +27,8 @@ import java.util.List;
 public class MedecinService {
     private final MedecinRepo medecinRepo;
     private final MedecinMapper medecinMapper;
+    @Autowired
+    private PasswordEncoder passwordEncoder;
     public MedecinService(MedecinRepo medecinRepo, MedecinMapper medecinMapper) {
         this.medecinRepo = medecinRepo;
         this.medecinMapper = medecinMapper;
@@ -32,9 +40,22 @@ public class MedecinService {
         if(medecinRepo.existsByEmail(medecinRequestDTO.getEmail())){
             throw  new RuntimeException("already exists");
         }
+
         Medecin addMedecin=medecinMapper.toEntity(medecinRequestDTO);
-        medecinRepo.save(addMedecin);
-        return medecinMapper.toDTO(addMedecin);
+        addMedecin.setPassword(passwordEncoder.encode("samira12"));
+        addMedecin.setUsername(medecinRequestDTO.getNom());
+        addMedecin.setRole(Role.MEDECIN);
+        Medecin savedMedecin = medecinRepo.save(addMedecin);
+        return medecinMapper.toDTO(savedMedecin);
+    }
+
+    @Transactional
+    public MedecinResponseDTO getMedecinByEmail(String email) {
+        Medecin medecin = medecinRepo.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Medecin profile not found"));
+
+        return medecinMapper.toDTO(medecin);
     }
 
     @Transactional
@@ -53,23 +74,36 @@ public class MedecinService {
     }
 
     @Transactional
-    @Cacheable(value = "MEDECIN_CACHE",key = "#page + '-' + #size + '-' + #sortBy")
-   public Page<MedecinResponseDTO> getAllMedecin(int page, int size, String sortBy){
-        Pageable pageable= PageRequest.of(page, size, Sort.by(sortBy).ascending());
-        Page<Medecin>medecins=medecinRepo.findAll(pageable);
-        return medecins.map(medecinMapper::toDTO);
-   }
-   @Transactional
-   @Cacheable(value = "MEDECIN_CACHE", key = "#nom + '-' + #page + '-' + #size")
-   public Page<MedecinResponseDTO> searchDoctor(
-           String specialite,
-           int page,
-           int size
-   ) {
-       Pageable pageable = PageRequest.of(page, size);
+//    @Cacheable(value = "MEDECIN_CACHE", key = "#page + '-' + #size + '-' + #sortBy")
+    public PageResponseDTO<MedecinResponseDTO> getAllMedecin(
+            int page,
+            int size,
+            String sortBy
+    ){
 
-       return medecinRepo.findBySpecialite(specialite, pageable)
-               .map(medecinMapper::toDTO);
-   }
+        Pageable pageable =
+                PageRequest.of(page,size,Sort.by(sortBy).ascending());
+
+        Page<Medecin> medecins = medecinRepo.findAll(pageable);
+
+        Page<MedecinResponseDTO> dtoPage =
+                medecins.map(medecinMapper::toDTO);
+
+
+        return new PageResponseDTO<>(
+                dtoPage.getContent(),
+                dtoPage.getNumber(),
+                dtoPage.getSize(),
+                dtoPage.getTotalElements(),
+                dtoPage.getTotalPages()
+        );
+    }
+
+
+    @Transactional
+    public Page<MedecinResponseDTO> searchDoctor(String specialite, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return medecinRepo.findBySpecialiteContainingIgnoreCase(specialite, pageable)
+                .map(medecinMapper::toDTO);
+    }
 }
-

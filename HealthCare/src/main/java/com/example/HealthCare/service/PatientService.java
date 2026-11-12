@@ -1,11 +1,14 @@
 package com.example.HealthCare.service;
 
+import com.example.HealthCare.dto.PageResponseDTO;
 import com.example.HealthCare.dto.PatientRequestDTO;
 import com.example.HealthCare.dto.PatientResponseDTO;
 import com.example.HealthCare.entity.Patient;
+import com.example.HealthCare.entity.Role;
 import com.example.HealthCare.mapper.PatientMapper;
 import com.example.HealthCare.repository.PatientRepo;
 import jakarta.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
@@ -13,7 +16,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -21,6 +27,8 @@ import java.util.List;
 public class PatientService {
     private final PatientRepo  patientRepo;
     private final PatientMapper patientMapper;
+    @Autowired
+    private PasswordEncoder passwordEncoder;
     public  PatientService(PatientRepo patientRepo, PatientMapper patientMapper) {
         this.patientRepo = patientRepo;
         this.patientMapper = patientMapper;
@@ -33,6 +41,9 @@ public class PatientService {
            throw  new RuntimeException("Email already exist");
         }
         Patient addPAtient= patientMapper.toEntity(patientDTO);
+        addPAtient.setPassword(passwordEncoder.encode("samira12"));
+        addPAtient.setUsername(patientDTO.getNom());
+        addPAtient.setRole(Role.PATIENT);
         Patient savedPatient = patientRepo.save(addPAtient);
         return patientMapper.toDto(savedPatient);
     }
@@ -51,13 +62,21 @@ public class PatientService {
     }
 
     @Transactional
-    @Cacheable(value = "PATIENT_CACHE", key = "#page + '-' + #size ")
-    public Page<PatientResponseDTO> getAllPatient(int page,int size){
-        Pageable pageable= PageRequest.of(page,size);
-        Page<Patient> patients= patientRepo.findAll(pageable);
-        return patients.map(patientMapper::toDto);
-    }
+//    @Cacheable(value = "PATIENT_CACHE", key = "#page + '-' + #size")
+    public PageResponseDTO<PatientResponseDTO> getAllPatient(int page,int size){
 
+        Pageable pageable = PageRequest.of(page,size);
+
+        Page<Patient> patients = patientRepo.findAll(pageable);
+
+        return new PageResponseDTO<>(
+                patients.map(patientMapper::toDto).getContent(),
+                patients.getNumber(),
+                patients.getSize(),
+                patients.getTotalElements(),
+                patients.getTotalPages()
+        );
+    }
     @Transactional
     @Cacheable(value = "PATIENT_CACHE",key ="#id")
     public  PatientResponseDTO  getPatientById(Long id){
@@ -68,14 +87,33 @@ public class PatientService {
     }
 
     @Transactional
-    @Cacheable(value = "PATIENT_CACHE", key = "#nom + '-' + #page + '-' + #size")
-    public Page<Patient>searchPatient(String nom, int page, int size){
-        Pageable pageable=PageRequest.of(page,size);
-        return patientRepo.findByNomContaining(nom,pageable);
+    public Page<PatientResponseDTO> searchPatient(String nom, int page, int size){
+        Pageable pageable = PageRequest.of(page, size, Sort.by("nom").ascending());
+        return patientRepo
+                .findByNomContainingIgnoreCaseOrPrenomContainingIgnoreCaseOrEmailContainingIgnoreCase(nom, nom, nom, pageable)
+                .map(patientMapper::toDto);
     }
 
+    @Transactional
+    public Page<PatientResponseDTO> sortByNom(int page, int size, String sortBy) {
 
+        Sort sort;
+        if (sortBy.equalsIgnoreCase("desc")) {
+            sort = Sort.by("nom").descending();
+        } else {
+            sort = Sort.by("nom").ascending();
+        }
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<Patient> patients = patientRepo.findAll(pageable);
+        return patients.map(patientMapper::toDto);
+    }
+    @Transactional
+    public PatientResponseDTO getPatientByEmail(String email) {
 
+        Patient patient = patientRepo.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Patient profile not found"));
 
+        return patientMapper.toDto(patient);
+    }
 }
-

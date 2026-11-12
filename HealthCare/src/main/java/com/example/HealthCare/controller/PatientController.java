@@ -1,5 +1,6 @@
 package com.example.HealthCare.controller;
 
+import com.example.HealthCare.dto.PageResponseDTO;
 import com.example.HealthCare.dto.PatientRequestDTO;
 import com.example.HealthCare.dto.PatientResponseDTO;
 import com.example.HealthCare.entity.Patient;
@@ -10,10 +11,12 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 @SecurityRequirement(name ="bearerAuth")
 @RestController
@@ -42,12 +45,14 @@ public class PatientController {
 
     @GetMapping
     @Operation(summary = "lister les patients")
-    public ResponseEntity<Page<PatientResponseDTO>>getAllPatientss(
-            @RequestParam(defaultValue = "0")int page,
-            @RequestParam(defaultValue = "10")int size){
+    public ResponseEntity<PageResponseDTO<PatientResponseDTO>> getAllPatientss(
+            @RequestParam(defaultValue="0") int page,
+            @RequestParam(defaultValue="10") int size
+    ){
 
-        Page<PatientResponseDTO> result=patientService.getAllPatient(page,size);
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(
+                patientService.getAllPatient(page,size)
+        );
     }
 
     @GetMapping("/{id}")
@@ -59,10 +64,35 @@ public class PatientController {
 
     @GetMapping("/search")
     @Operation(summary ="search by nom")
-    public ResponseEntity<Page<Patient>>searchByNom(@RequestParam String nom,
-                                                    @RequestParam(defaultValue = "0")int page,
-                                                    @RequestParam(defaultValue = "5")int size){
-        return ResponseEntity.ok(patientService.searchPatient(nom,page,size));
+    public ResponseEntity<PageResponseDTO<PatientResponseDTO>> searchByNom(@RequestParam(defaultValue = "") String nom,
+                                                                           @RequestParam(defaultValue = "0")int page,
+                                                                           @RequestParam(defaultValue = "10")int size){
+        Page<PatientResponseDTO> result = patientService.searchPatient(nom,page,size);
+        return ResponseEntity.ok(new PageResponseDTO<>(
+                result.getContent(), result.getNumber(), result.getSize(),
+                result.getTotalElements(), result.getTotalPages()));
     }
 
+    @GetMapping("/sort")
+    public ResponseEntity<PageResponseDTO<PatientResponseDTO>> sortPatients(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "asc") String sortBy) {
+        Page<PatientResponseDTO> result = patientService.sortByNom(page,size,sortBy);
+        return ResponseEntity.ok(new PageResponseDTO<>(
+                result.getContent(), result.getNumber(), result.getSize(),
+                result.getTotalElements(), result.getTotalPages()));
+    }
+
+
+    @GetMapping("/me")
+    public ResponseEntity<PatientResponseDTO> getMyProfile(
+            Authentication authentication) {
+
+        String email = authentication.getName();
+
+        return ResponseEntity.ok(
+                patientService.getPatientByEmail(email)
+        );
+    }
 }

@@ -14,6 +14,10 @@ public interface RendezVousMapper {
 
     @Mapping(source = "patient.id", target = "patientId")
     @Mapping(source = "medecin.id", target = "medecinId")
+    @Mapping(source = "patient.nom", target = "patientNom")
+    @Mapping(source = "patient.prenom", target = "patientPrenom")
+    @Mapping(source = "medecin.nom", target = "medecinNom")
+    @Mapping(source = "medecin.specialite", target = "medecinSpecialite")
     RendezVousResponseDTO toDto(RendezVous rendezVous);
     List<RendezVousResponseDTO>toDto(List<RendezVous>rendezVousList);
     RendezVous toEntity(RendezVouRequestDTO rendezVousRequestDTO);

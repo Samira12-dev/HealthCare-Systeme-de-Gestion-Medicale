@@ -2,6 +2,7 @@ package com.example.HealthCare.controller;
 
 import com.example.HealthCare.dto.MedecinRequestDTO;
 import com.example.HealthCare.dto.MedecinResponseDTO;
+import com.example.HealthCare.dto.PageResponseDTO;
 import com.example.HealthCare.dto.PatientResponseDTO;
 import com.example.HealthCare.service.MedecinService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -10,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -38,17 +40,22 @@ public class MedecinController {
         medecinService.deleteMedecin(id);
     }
 
-    @GetMapping
-    @Operation(summary = "listerles medecins")
-    public ResponseEntity<Page<MedecinResponseDTO>>getAllMedecin(@RequestParam (defaultValue = "0")int page,
-                                                                 @RequestParam(defaultValue = "10")int size,
-                                                                 @RequestParam(defaultValue = "specialite")String sortBy){
-
-
-        Page<MedecinResponseDTO> responseDTOS= medecinService.getAllMedecin(page, size, sortBy);
-        return ResponseEntity.ok(responseDTOS);
-
+    @GetMapping("/me")
+    public ResponseEntity<MedecinResponseDTO> getMyProfile(Authentication authentication) {
+        return ResponseEntity.ok(medecinService.getMedecinByEmail(authentication.getName()));
     }
+
+    @GetMapping
+    public ResponseEntity<PageResponseDTO<MedecinResponseDTO>> getAllMedecin(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "specialite") String sortBy){
+
+        return ResponseEntity.ok(
+                medecinService.getAllMedecin(page,size,sortBy)
+        );
+    }
+
     @GetMapping("/search")
     @Operation(summary = "search by speciality")
     public  Page<MedecinResponseDTO>searchBySpeciality(@RequestParam String speciality,

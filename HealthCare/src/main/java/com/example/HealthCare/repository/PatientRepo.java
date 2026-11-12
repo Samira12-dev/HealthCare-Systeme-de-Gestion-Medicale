@@ -16,6 +16,7 @@ public interface PatientRepo extends JpaRepository<Patient,Long> {
 
    @EntityGraph(attributePaths = "listeRendezVous")
     Optional<Patient> findById(Long id);
-
-
+    Optional<Patient> findByEmail(String email);
+    Page<Patient> findByNomContainingIgnoreCaseOrPrenomContainingIgnoreCaseOrEmailContainingIgnoreCase(
+            String nom, String prenom, String email, Pageable pageable);
 }

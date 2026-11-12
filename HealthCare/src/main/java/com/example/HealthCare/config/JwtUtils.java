@@ -11,6 +11,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 @Component
@@ -25,7 +26,6 @@ public class JwtUtils {
     public String generateToken(String email, String role) {
         return Jwts.builder()
                 .setSubject(email)
-                .claim("role", role)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expirationTime))
                 .signWith(getSignKey(), SignatureAlgorithm.HS256)
@@ -37,8 +37,9 @@ public class JwtUtils {
     }
 
     public String extractUsername(String token) {
-        return Jwts.parser()
+        return Jwts.parserBuilder()
                 .setSigningKey(getSignKey())
+                .build()
                 .parseClaimsJws(token)
                 .getBody()
                 .getSubject();
@@ -50,8 +51,9 @@ public class JwtUtils {
     }
 
     private boolean isTokenExpired(String token) {
-        Date expiration = Jwts.parser()
+        Date expiration = Jwts.parserBuilder()
                 .setSigningKey(getSignKey())
+                .build()
                 .parseClaimsJws(token)
                 .getBody()
                 .getExpiration();

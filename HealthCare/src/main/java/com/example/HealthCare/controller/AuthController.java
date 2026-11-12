@@ -3,6 +3,7 @@ package com.example.HealthCare.controller;
 import com.example.HealthCare.config.JwtUtils;
 import com.example.HealthCare.dto.LoginRequestDto;
 import com.example.HealthCare.dto.RegisterRequestDto;
+import com.example.HealthCare.entity.Patient;
 import com.example.HealthCare.entity.Role;
 import com.example.HealthCare.entity.User;
 import com.example.HealthCare.repository.UserRepo;
@@ -42,17 +43,24 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequestDto dto) {
 
+        if (dto.getRole() != null && dto.getRole() != Role.PATIENT) {
+            return ResponseEntity.badRequest().body("Only patient self-registration is allowed");
+        }
+
         if (userRepo.findByEmail(dto.getEmail()).isPresent()) {
             return ResponseEntity.badRequest().body("Email already exists");
         }
 
-        User user = new User();
-        user.setUsername(dto.getUsername());
-        user.setEmail(dto.getEmail());
-        user.setPassword(passwordEncoder.encode(dto.getPassword()));
-        user.setRole(dto.getRole()!= null ? dto.getRole() : Role.PATIENT);
-
-        User savedUser = userRepo.save(user);
+        Patient patient = new Patient();
+        patient.setUsername(dto.getUsername());
+        patient.setEmail(dto.getEmail());
+        patient.setPassword(passwordEncoder.encode(dto.getPassword()));
+        patient.setRole(Role.PATIENT);
+        patient.setNom(dto.getNom());
+        patient.setPrenom(dto.getPrenom());
+        patient.setTelephone(dto.getTelephone());
+        patient.setDateNaissance(dto.getDateNaissance());
+        Patient savedUser = userRepo.save(patient);
 
         String token = jwtUtils.generateToken(savedUser.getEmail(), savedUser.getRole().name());
 
@@ -61,7 +69,7 @@ public class AuthController {
         response.put("type", "Bearer");
         response.put("email", savedUser.getEmail());
         response.put("username", savedUser.getUsername());
-
+        response.put("role", savedUser.getRole());
         return ResponseEntity.ok(response);
     }
 
@@ -88,6 +96,7 @@ public class AuthController {
                 response.put("type", "Bearer");
                 response.put("email", user.getEmail());
                 response.put("role", user.getRole());
+                response.put("username", user.getUsername());
                 return ResponseEntity.ok(response);
             }
 

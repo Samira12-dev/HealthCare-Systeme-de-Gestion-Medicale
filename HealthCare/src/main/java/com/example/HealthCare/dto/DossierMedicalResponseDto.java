@@ -18,6 +18,9 @@ public class DossierMedicalResponseDto {
     private String diagnostic;
     private String observation;
     private LocalDate dateCreation;
+    private Long patientId;
+    private String patientNom;
+    private String patientPrenom;
 
 
 

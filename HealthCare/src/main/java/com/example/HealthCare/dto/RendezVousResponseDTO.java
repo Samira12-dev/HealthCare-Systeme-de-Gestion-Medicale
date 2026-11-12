@@ -21,5 +21,9 @@ public class RendezVousResponseDTO {
     private LocalDateTime dateRendezVous;
     private StatutRendezVous statut;
     private Long patientId;
+    private String patientNom;
+    private String patientPrenom;
+    private String medecinNom;
+    private String medecinSpecialite;
     private Long medecinId;
 }

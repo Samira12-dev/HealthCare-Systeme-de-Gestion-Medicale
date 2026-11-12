@@ -15,5 +15,7 @@ public interface MedecinRepo  extends JpaRepository<Medecin,Long> {
     Optional<Medecin> findById(Long aLong);
 
     boolean existsByEmail(String email);
+    Optional<Medecin> findByEmail(String email);
     Page<Medecin> findBySpecialite(String specialite, Pageable pageable);
+    Page<Medecin> findBySpecialiteContainingIgnoreCase(String specialite, Pageable pageable);
 }
